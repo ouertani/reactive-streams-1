@@ -34,11 +34,11 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class ReactiveWriteStream implements WriteStream<ReactiveWriteStream>, Publisher<Buffer> {
 
-  private Set<Subscriber<Buffer>> subscribers = new HashSet<Subscriber<Buffer>>();
+  private Set<SubscriptionImpl> subscriptions = new HashSet<SubscriptionImpl>();
 
   private Queue<Buffer> pending = new LinkedList<Buffer>();
 
-  private AtomicInteger tokens = new AtomicInteger();
+  //private AtomicInteger tokens = new AtomicInteger();
 
   private Handler<Void> drainHandler;
 
@@ -47,17 +47,15 @@ public class ReactiveWriteStream implements WriteStream<ReactiveWriteStream>, Pu
 
   @Override
   public void subscribe(Subscriber<Buffer> subscriber) {
-    subscribers.add(subscriber);
-    subscriber.onSubscribe(new SubscriptionImpl());
+    SubscriptionImpl sub = new SubscriptionImpl(subscriber);
+    subscriptions.add(sub);
+    subscriber.onSubscribe(sub);
   }
 
   @Override
   public ReactiveWriteStream writeBuffer(Buffer data) {
-    if (tokens.get() > 0 && !subscribers.isEmpty()) {
-      sendToSubscribers(data);
-    } else {
-      pending.add(data);
-    }
+    pending.add(data);
+    checkSend();
     return this;
   }
 
@@ -84,9 +82,10 @@ public class ReactiveWriteStream implements WriteStream<ReactiveWriteStream>, Pu
   }
 
   private void checkSend() {
-    if (!subscribers.isEmpty()) {
-      int availableTokens = tokens.get();
+    if (!subscriptions.isEmpty()) {
+      int availableTokens = getAvailable();
       int toSend = Math.min(availableTokens, pending.size());
+      takeTokens(toSend);
       for (int i = 0; i < toSend; i++) {
         sendToSubscribers(pending.poll());
       }
@@ -96,13 +95,35 @@ public class ReactiveWriteStream implements WriteStream<ReactiveWriteStream>, Pu
     }
   }
 
+  private int getAvailable() {
+    int min = Integer.MAX_VALUE;
+    for (SubscriptionImpl subscription: subscriptions) {
+      min = Math.min(subscription.tokens.get(), min);
+    }
+    return min;
+  }
+
+  private void takeTokens(int toSend) {
+    for (SubscriptionImpl subscription: subscriptions) {
+      subscription.tokens.addAndGet(-toSend);
+    }
+  }
+
   private void sendToSubscribers(Buffer data) {
-    for (Subscriber<Buffer> subscriber: subscribers) {
-      subscriber.onNext(data);
+    for (SubscriptionImpl sub: subscriptions) {
+      sub.subscriber.onNext(data);
     }
   }
 
   class SubscriptionImpl implements Subscription {
+
+    Subscriber<Buffer> subscriber;
+
+    AtomicInteger tokens = new AtomicInteger();
+
+    SubscriptionImpl(Subscriber<Buffer> subscriber) {
+      this.subscriber = subscriber;
+    }
 
     @Override
     public void request(int i) {
