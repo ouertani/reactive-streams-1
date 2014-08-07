@@ -44,6 +44,8 @@ public class ReactiveWriteStream implements WriteStream<ReactiveWriteStream>, Pu
 
   private int writeQueueMaxSize = 10; /// Whatever
 
+  private int maxBufferSize = 8 * 1024;
+
 
   @Override
   public void subscribe(Subscriber<Buffer> subscriber) {
@@ -54,8 +56,11 @@ public class ReactiveWriteStream implements WriteStream<ReactiveWriteStream>, Pu
 
   @Override
   public ReactiveWriteStream writeBuffer(Buffer data) {
-    pending.add(data);
-    checkSend();
+    if (data.length() > maxBufferSize) {
+      splitBuffers(data);
+    } else {
+      pending.add(data);
+    }
     return this;
   }
 
@@ -79,6 +84,15 @@ public class ReactiveWriteStream implements WriteStream<ReactiveWriteStream>, Pu
   @Override
   public ReactiveWriteStream exceptionHandler(Handler<Throwable> handler) {
     return this;
+  }
+
+  private void splitBuffers(Buffer data) {
+    int pos = 0;
+    while (pos < data.length() - 1) {
+      Buffer slice = data.slice(pos, Math.max(pos + maxBufferSize, data.length() - 1));
+      pending.add(slice);
+      pos += maxBufferSize;
+    }
   }
 
   private void checkSend() {
