@@ -90,11 +90,14 @@ public class ReactiveWriteStream implements WriteStream<ReactiveWriteStream>, Pu
       for (int i = 0; i < toSend; i++) {
         sendToSubscribers(pending.poll());
       }
+      if (pending.size() < writeQueueMaxSize) {
+        drainHandler.handle(null);
+      }
     }
   }
 
   private void sendToSubscribers(Buffer data) {
-    for (Subscriber subscriber: subscribers) {
+    for (Subscriber<Buffer> subscriber: subscribers) {
       subscriber.onNext(data);
     }
   }
@@ -104,6 +107,7 @@ public class ReactiveWriteStream implements WriteStream<ReactiveWriteStream>, Pu
     @Override
     public void request(int i) {
       tokens.addAndGet(i);
+      checkSend();
     }
 
     @Override
