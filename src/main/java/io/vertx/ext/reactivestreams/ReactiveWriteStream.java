@@ -34,11 +34,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class ReactiveWriteStream implements WriteStream<ReactiveWriteStream>, Publisher<Buffer> {
 
-  private Set<SubscriptionImpl> subscriptions = new HashSet<SubscriptionImpl>();
+  private Set<SubscriptionImpl> subscriptions = new HashSet<>();
 
-  private Queue<Buffer> pending = new LinkedList<Buffer>();
-
-  //private AtomicInteger tokens = new AtomicInteger();
+  private Queue<Buffer> pending = new LinkedList<>();
 
   private Handler<Void> drainHandler;
 
@@ -56,11 +54,13 @@ public class ReactiveWriteStream implements WriteStream<ReactiveWriteStream>, Pu
 
   @Override
   public ReactiveWriteStream writeBuffer(Buffer data) {
+    //TODO: We probably don't have to buffer if tokens are available, just send them through
     if (data.length() > maxBufferSize) {
       splitBuffers(data);
     } else {
       pending.add(data);
     }
+    checkSend();
     return this;
   }
 
@@ -103,8 +103,11 @@ public class ReactiveWriteStream implements WriteStream<ReactiveWriteStream>, Pu
       for (int i = 0; i < toSend; i++) {
         sendToSubscribers(pending.poll());
       }
+      //TODO: This doesn't seem right
       if (pending.size() < writeQueueMaxSize) {
-        drainHandler.handle(null);
+        if (drainHandler != null) {
+          drainHandler.handle(null);
+        }
       }
     }
   }

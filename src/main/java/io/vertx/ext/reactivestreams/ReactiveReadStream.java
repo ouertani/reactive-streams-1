@@ -17,58 +17,118 @@
 package io.vertx.ext.reactivestreams;
 
 import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.streams.ReadStream;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
+import java.util.ArrayDeque;
+import java.util.Queue;
+
 /**
  * @author <a href="http://tfox.org">Tim Fox</a>
  */
-public class ReactiveReadStream<T> implements ReadStream<ReactiveReadStream>, Subscriber<T> {
+public class ReactiveReadStream implements ReadStream<ReactiveReadStream>, Subscriber<Buffer> {
+
+  private final Vertx vertx;
+  private int bufferSize;
+
+  private Handler<Buffer> dataHandler;
+  private Handler<Void> endHandler;
+  private Handler<Throwable> exceptionHandler;
+
+  private Subscription subscription;
+
+  private Queue<Buffer> pausedData;
+  private boolean paused;
+
+  public ReactiveReadStream(Vertx vertx, int bufferSize) {
+    this.vertx = vertx;
+    this.bufferSize = bufferSize;
+  }
 
   @Override
   public ReactiveReadStream dataHandler(Handler<Buffer> handler) {
-    return null;
+    this.dataHandler = handler;
+    if (dataHandler != null && !paused) {
+      doRead();
+    }
+    return this;
   }
 
   @Override
   public ReactiveReadStream pause() {
-    return null;
+    this.paused = true;
+    return this;
   }
 
   @Override
   public ReactiveReadStream resume() {
-    return null;
+    this.paused = false;
+    if (pausedData != null) {
+      Buffer data;
+      while ((data = pausedData.peek()) != null) {
+        handleData(data);
+      }
+    } else {
+      doRead();
+    }
+    return this;
   }
 
   @Override
   public ReactiveReadStream endHandler(Handler<Void> endHandler) {
-    return null;
+    this.endHandler = endHandler;
+    return this;
   }
 
   @Override
   public ReactiveReadStream exceptionHandler(Handler<Throwable> handler) {
-    return null;
+    this.exceptionHandler = handler;
+    return this;
   }
 
   @Override
   public void onSubscribe(Subscription subscription) {
-
+    this.subscription = subscription;
+    doRead();
   }
 
   @Override
-  public void onNext(T t) {
-
+  public void onNext(Buffer buffer) {
+    handleData(buffer);
   }
 
   @Override
   public void onError(Throwable throwable) {
-
+    if (exceptionHandler != null) {
+      exceptionHandler.handle(throwable);
+    }
   }
 
   @Override
   public void onComplete() {
+    if (endHandler != null) {
+      endHandler.handle(null);
+    }
+  }
 
+  private void handleData(Buffer buffer) {
+    if (paused) {
+      if (pausedData == null) {
+        pausedData = new ArrayDeque<>();
+      }
+      pausedData.add(buffer);
+    } else if (dataHandler != null) {
+      dataHandler.handle(buffer);
+      doRead();
+    }
+  }
+
+  private void doRead() {
+    if (!paused && subscription != null) {
+      subscription.request(bufferSize);
+    }
   }
 }
