@@ -16,138 +16,27 @@
 
 package io.vertx.ext.reactivestreams;
 
-import io.vertx.core.Handler;
+import io.vertx.core.ServiceHelper;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.streams.WriteStream;
+import io.vertx.ext.reactivestreams.spi.ReactiveWriteStreamFactory;
 import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
-
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Queue;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author <a href="http://tfox.org">Tim Fox</a>
  */
-public class ReactiveWriteStream implements WriteStream<ReactiveWriteStream>, Publisher<Buffer> {
+public interface ReactiveWriteStream extends WriteStream<ReactiveWriteStream>, Publisher<Buffer> {
 
-  private Set<SubscriptionImpl> subscriptions = new HashSet<SubscriptionImpl>();
+  ReactiveWriteStream setBufferMaxSize(int maxBufferSize);
 
-  private Queue<Buffer> pending = new LinkedList<Buffer>();
-
-  //private AtomicInteger tokens = new AtomicInteger();
-
-  private Handler<Void> drainHandler;
-
-  private int writeQueueMaxSize = 10; /// Whatever
-
-  private int maxBufferSize = 8 * 1024;
-
-
-  @Override
-  public void subscribe(Subscriber<Buffer> subscriber) {
-    SubscriptionImpl sub = new SubscriptionImpl(subscriber);
-    subscriptions.add(sub);
-    subscriber.onSubscribe(sub);
+  static ReactiveWriteStream writeStream() {
+    return factory.writeStream();
   }
 
-  @Override
-  public ReactiveWriteStream writeBuffer(Buffer data) {
-    if (data.length() > maxBufferSize) {
-      splitBuffers(data);
-    } else {
-      pending.add(data);
-    }
-    return this;
-  }
+  static final int DEFAULT_MAX_BUFFER_SIZE = 8 * 1024;
 
-  @Override
-  public ReactiveWriteStream setWriteQueueMaxSize(int maxSize) {
-    this.writeQueueMaxSize = maxSize;
-    return this;
-  }
+  static final int DEFAULT_WRITE_QUEUE_MAX_SIZE = 32 * 1024;
 
-  @Override
-  public boolean writeQueueFull() {
-    return pending.size() >= writeQueueMaxSize;
-  }
+  static final ReactiveWriteStreamFactory factory = ServiceHelper.loadFactory(ReactiveWriteStreamFactory.class);
 
-  @Override
-  public ReactiveWriteStream drainHandler(Handler<Void> handler) {
-    this.drainHandler = handler;
-    return this;
-  }
-
-  @Override
-  public ReactiveWriteStream exceptionHandler(Handler<Throwable> handler) {
-    return this;
-  }
-
-  private void splitBuffers(Buffer data) {
-    int pos = 0;
-    while (pos < data.length() - 1) {
-      Buffer slice = data.slice(pos, Math.max(pos + maxBufferSize, data.length() - 1));
-      pending.add(slice);
-      pos += maxBufferSize;
-    }
-  }
-
-  private void checkSend() {
-    if (!subscriptions.isEmpty()) {
-      int availableTokens = getAvailable();
-      int toSend = Math.min(availableTokens, pending.size());
-      takeTokens(toSend);
-      for (int i = 0; i < toSend; i++) {
-        sendToSubscribers(pending.poll());
-      }
-      if (pending.size() < writeQueueMaxSize) {
-        drainHandler.handle(null);
-      }
-    }
-  }
-
-  private int getAvailable() {
-    int min = Integer.MAX_VALUE;
-    for (SubscriptionImpl subscription: subscriptions) {
-      min = Math.min(subscription.tokens.get(), min);
-    }
-    return min;
-  }
-
-  private void takeTokens(int toSend) {
-    for (SubscriptionImpl subscription: subscriptions) {
-      subscription.tokens.addAndGet(-toSend);
-    }
-  }
-
-  private void sendToSubscribers(Buffer data) {
-    for (SubscriptionImpl sub: subscriptions) {
-      sub.subscriber.onNext(data);
-    }
-  }
-
-  class SubscriptionImpl implements Subscription {
-
-    Subscriber<Buffer> subscriber;
-
-    AtomicInteger tokens = new AtomicInteger();
-
-    SubscriptionImpl(Subscriber<Buffer> subscriber) {
-      this.subscriber = subscriber;
-    }
-
-    @Override
-    public void request(int i) {
-      tokens.addAndGet(i);
-      checkSend();
-    }
-
-    @Override
-    public void cancel() {
-
-    }
-  }
 }

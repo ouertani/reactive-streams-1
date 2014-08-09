@@ -14,38 +14,19 @@
  *  You may elect to redistribute this code under either of these licenses.
  */
 
-package io.vertx.ext.reactivestreams.examples;
+package io.vertx.ext.reactivestreams.impl;
 
-import io.vertx.core.buffer.Buffer;
-import io.vertx.core.streams.Pump;
-import io.vertx.core.streams.ReadStream;
 import io.vertx.ext.reactivestreams.ReactiveWriteStream;
-import org.reactivestreams.Subscriber;
+import io.vertx.ext.reactivestreams.spi.ReactiveWriteStreamFactory;
 
 /**
  * @author <a href="http://tfox.org">Tim Fox</a>
  */
-public class SimpleExample {
+public class ReactiveWriteStreamFactoryImpl implements ReactiveWriteStreamFactory {
 
-  public static void main(String[] args) {
-    new SimpleExample().run();
+  @Override
+  public ReactiveWriteStream writeStream() {
+    return new ReactiveWriteStreamImpl();
   }
 
-  public void run() {
-
-    ReadStream rs = null; // E.g. get readstream from Vert.x HttpServerRequest
-
-    ReactiveWriteStream rws = ReactiveWriteStream.writeStream();
-
-    Subscriber<Buffer> sub = null; // E.g. get subscriber from Akka
-
-    rws.subscribe(sub);
-
-    Pump pump = Pump.pump(rs, rws);
-
-    pump.start();
-
-
-
-  }
 }
