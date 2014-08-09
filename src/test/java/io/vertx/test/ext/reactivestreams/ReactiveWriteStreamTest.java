@@ -91,6 +91,8 @@ public class ReactiveWriteStreamTest extends VertxTestBase {
 
   // TODO test setters for max writestreamsize and buffer size and valid values
 
+  // TODO test cancel subscription
+
   private void testDefaultMaxBufferSize(ReactiveWriteStream rws, int maxSize) throws Exception {
 
     MySubscriber subscriber = new MySubscriber();

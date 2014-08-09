@@ -26,7 +26,6 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author <a href="http://tfox.org">Tim Fox</a>
@@ -39,9 +38,15 @@ public class ReactiveWriteStreamImpl implements ReactiveWriteStream {
   private int writeQueueMaxSize = DEFAULT_WRITE_QUEUE_MAX_SIZE;
   private int maxBufferSize = DEFAULT_MAX_BUFFER_SIZE;
   private int totPending;
+  private Thread thread;
+
+  ReactiveWriteStreamImpl() {
+    this.thread = Thread.currentThread();
+  }
 
   @Override
   public void subscribe(Subscriber<Buffer> subscriber) {
+    checkThread();
     SubscriptionImpl sub = new SubscriptionImpl(subscriber);
     subscriptions.add(sub);
     subscriber.onSubscribe(sub);
@@ -49,6 +54,7 @@ public class ReactiveWriteStreamImpl implements ReactiveWriteStream {
 
   @Override
   public ReactiveWriteStreamImpl writeBuffer(Buffer data) {
+    checkThread();
     if (data.length() > maxBufferSize) {
       splitBuffers(data);
     } else {
@@ -61,6 +67,7 @@ public class ReactiveWriteStreamImpl implements ReactiveWriteStream {
 
   @Override
   public ReactiveWriteStreamImpl setWriteQueueMaxSize(int maxSize) {
+    checkThread();
     if (writeQueueMaxSize < 1) {
       throw new IllegalArgumentException("writeQueueMaxSize must be >=1");
     }
@@ -70,27 +77,37 @@ public class ReactiveWriteStreamImpl implements ReactiveWriteStream {
 
   @Override
   public boolean writeQueueFull() {
+    checkThread();
     return totPending >= writeQueueMaxSize;
   }
 
   @Override
   public ReactiveWriteStreamImpl drainHandler(Handler<Void> handler) {
+    checkThread();
     this.drainHandler = handler;
     return this;
   }
 
   @Override
   public ReactiveWriteStreamImpl exceptionHandler(Handler<Throwable> handler) {
+    checkThread();
     return this;
   }
 
   @Override
   public ReactiveWriteStream setBufferMaxSize(int maxBufferSize) {
+    checkThread();
     if (maxBufferSize < 1) {
       throw new IllegalArgumentException("maxBufferSize must be >=1");
     }
     this.maxBufferSize = maxBufferSize;
     return this;
+  }
+
+  private void checkThread() {
+    if (Thread.currentThread() != thread) {
+      throw new IllegalStateException("Wrong thread!");
+    }
   }
 
   private void splitBuffers(Buffer data) {
@@ -120,14 +137,14 @@ public class ReactiveWriteStreamImpl implements ReactiveWriteStream {
   private int getAvailable() {
     int min = Integer.MAX_VALUE;
     for (SubscriptionImpl subscription: subscriptions) {
-      min = Math.min(subscription.tokens.get(), min);
+      min = Math.min(subscription.tokens, min);
     }
     return min;
   }
 
   private void takeTokens(int toSend) {
     for (SubscriptionImpl subscription: subscriptions) {
-      subscription.tokens.addAndGet(-toSend);
+      subscription.tokens -= toSend;
     }
   }
 
@@ -145,8 +162,7 @@ public class ReactiveWriteStreamImpl implements ReactiveWriteStream {
   class SubscriptionImpl implements Subscription {
 
     Subscriber<Buffer> subscriber;
-
-    AtomicInteger tokens = new AtomicInteger();
+    int tokens;
 
     SubscriptionImpl(Subscriber<Buffer> subscriber) {
       this.subscriber = subscriber;
@@ -154,13 +170,14 @@ public class ReactiveWriteStreamImpl implements ReactiveWriteStream {
 
     @Override
     public void request(int i) {
-      tokens.addAndGet(i);
+      checkThread();
+      tokens += i;
       checkSend();
     }
 
     @Override
     public void cancel() {
-
+      subscriptions.remove(this);
     }
   }
 }
