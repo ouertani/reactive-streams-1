@@ -25,6 +25,7 @@ import java.util.ArrayDeque;
 import java.util.Queue;
 
 /**
+ * @author <a href="mailto:nscavell@redhat.com">Nick Scavelli</a>
  * @author <a href="http://tfox.org">Tim Fox</a>
  */
 public class ReactiveReadStreamImpl implements ReactiveReadStream {
