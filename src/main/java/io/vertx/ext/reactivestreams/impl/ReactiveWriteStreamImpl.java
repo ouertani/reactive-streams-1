@@ -22,8 +22,8 @@ import io.vertx.ext.reactivestreams.ReactiveWriteStream;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
+import java.util.ArrayDeque;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Set;
 
@@ -33,12 +33,12 @@ import java.util.Set;
 public class ReactiveWriteStreamImpl implements ReactiveWriteStream {
 
   private Set<SubscriptionImpl> subscriptions = new HashSet<SubscriptionImpl>();
-  private Queue<Buffer> pending = new LinkedList<Buffer>();
+  private final Queue<Buffer> pending = new ArrayDeque<>();
   private Handler<Void> drainHandler;
   private int writeQueueMaxSize = DEFAULT_WRITE_QUEUE_MAX_SIZE;
   private int maxBufferSize = DEFAULT_MAX_BUFFER_SIZE;
   private int totPending;
-  private Thread thread;
+  private final Thread thread;
 
   ReactiveWriteStreamImpl() {
     this.thread = Thread.currentThread();
@@ -128,7 +128,7 @@ public class ReactiveWriteStreamImpl implements ReactiveWriteStream {
       for (int i = 0; i < toSend; i++) {
         sendToSubscribers(pending.poll());
       }
-      if (drainHandler != null && pending.size() < writeQueueMaxSize) {
+      if (drainHandler != null && totPending < writeQueueMaxSize) {
         drainHandler.handle(null);
       }
     }

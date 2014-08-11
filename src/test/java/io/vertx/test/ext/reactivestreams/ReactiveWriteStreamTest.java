@@ -19,7 +19,6 @@ package io.vertx.test.ext.reactivestreams;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.ext.reactivestreams.ReactiveWriteStream;
 import io.vertx.test.core.TestUtils;
-import io.vertx.test.core.VertxTestBase;
 import org.junit.Test;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -30,7 +29,9 @@ import java.util.List;
 /**
  * @author <a href="http://tfox.org">Tim Fox</a>
  */
-public class ReactiveWriteStreamTest extends VertxTestBase {
+public class ReactiveWriteStreamTest extends ReactiveStreamTestBase {
+
+  // TODO tests with fake subscriber
 
   @Test
   public void testWriteNoTokensInitially() throws Exception {
@@ -226,13 +227,6 @@ public class ReactiveWriteStreamTest extends VertxTestBase {
     await();
   }
 
-  private List<Buffer> createRandomBuffers(int size) {
-    List<Buffer> buffers = new ArrayList<>();
-    for (int i = 0; i < size; i++) {
-      buffers.add(TestUtils.randomBuffer(100));
-    }
-    return buffers;
-  }
 
   class MySubscriber implements Subscriber<Buffer> {
 
