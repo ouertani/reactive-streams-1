@@ -118,8 +118,8 @@
   </build>
       <repositories>
           <repository>
-              <id>akka.io</id>
-              <url>http://repo.akka.io/</url>
+              <id>akka</id>
+              <url>http://repo.akka.io/snapshots/</url>
           </repository>
       </repositories>
 
