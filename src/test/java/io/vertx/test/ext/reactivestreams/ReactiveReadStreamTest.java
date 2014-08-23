@@ -216,35 +216,5 @@ public class ReactiveReadStreamTest extends ReactiveStreamTestBase {
     await();
   }
 
-  class MySubscription implements Subscription {
-
-    int requested;
-    int requestedTimes;
-
-    @Override
-    public void request(int i) {
-      requestedTimes++;
-      requested += i;
-    }
-
-    @Override
-    public void cancel() {
-
-    }
-  }
-
-
-  class MyPublisher implements Publisher<Buffer> {
-
-    MySubscription subscription;
-    Subscriber<Buffer> subscriber;
-
-    @Override
-    public void subscribe(Subscriber<Buffer> subscriber) {
-      this.subscriber = subscriber;
-      subscription = new MySubscription();
-      subscriber.onSubscribe(subscription);
-    }
-  }
 
 }
