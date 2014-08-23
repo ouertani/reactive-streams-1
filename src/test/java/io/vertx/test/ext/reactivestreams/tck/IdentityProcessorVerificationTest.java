@@ -11,6 +11,10 @@ import org.reactivestreams.tck.TestEnvironment;
  *         Date: 23/08/2014
  */
 public class IdentityProcessorVerificationTest extends IdentityProcessorVerification<Buffer> {
+
+    public IdentityProcessorVerificationTest() {
+        super(null, 0);
+    }
     public IdentityProcessorVerificationTest(TestEnvironment testEnvironment, long l) {
         super(testEnvironment, l);
     }

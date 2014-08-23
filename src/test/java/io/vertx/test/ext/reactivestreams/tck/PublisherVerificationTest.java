@@ -14,6 +14,13 @@ import org.reactivestreams.tck.TestEnvironment;
  */
 public class PublisherVerificationTest extends PublisherVerification<Buffer> {
 
+    public static final long DEFAULT_TIMEOUT_MILLIS = 300L;
+    public static final long PUBLISHER_REFERENCE_CLEANUP_TIMEOUT_MILLIS = 1000L;
+
+    public PublisherVerificationTest() {
+        super(new TestEnvironment(DEFAULT_TIMEOUT_MILLIS), PUBLISHER_REFERENCE_CLEANUP_TIMEOUT_MILLIS);
+    }
+
     public PublisherVerificationTest(TestEnvironment testEnvironment, long l) {
         super(testEnvironment, l);
     }

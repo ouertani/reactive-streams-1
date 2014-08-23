@@ -12,6 +12,10 @@ import org.reactivestreams.tck.TestEnvironment;
  */
 public class SubscriberWhiteboxVerificationTest extends SubscriberWhiteboxVerification<Buffer> {
 
+
+    public SubscriberWhiteboxVerificationTest(){
+        super(null);
+    }
     protected SubscriberWhiteboxVerificationTest(TestEnvironment testEnvironment) {
         super(testEnvironment);
     }

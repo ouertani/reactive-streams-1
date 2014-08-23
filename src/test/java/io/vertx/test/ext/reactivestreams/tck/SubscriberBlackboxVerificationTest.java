@@ -11,6 +11,11 @@ import org.reactivestreams.tck.TestEnvironment;
  *         Date: 23/08/2014
  */
 public class SubscriberBlackboxVerificationTest extends SubscriberBlackboxVerification<Buffer> {
+
+    public SubscriberBlackboxVerificationTest(){
+        super(null);
+    }
+
     protected SubscriberBlackboxVerificationTest(TestEnvironment testEnvironment) {
         super(testEnvironment);
     }
